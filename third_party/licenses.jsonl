@@ -37,6 +37,7 @@
 {"name": "circuitbreaker", "license": "BSD-3-CLAUSE", "compatible": true}
 {"name": "click", "license": "BSD-3-CLAUSE", "compatible": true}
 {"name": "clickhouse-connect", "license": "APACHE-2.0", "compatible": true}
+{"name": "cloudpickle", "license": "BSD-3-CLAUSE", "compatible": true}
 {"name": "colorama", "license": "BSD-3-CLAUSE", "compatible": true}
 {"name": "colorlog", "license": "MIT", "compatible": true}
 {"name": "cryptography", "license": "APACHE-2.0", "compatible": true}
