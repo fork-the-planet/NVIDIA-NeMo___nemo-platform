@@ -57,7 +57,6 @@ if TYPE_CHECKING:
         files,
         intake,
         models,
-        members,
         secrets,
         adapters,
         entities,
@@ -72,7 +71,6 @@ if TYPE_CHECKING:
     from .filesets.resources import FilesResource, AsyncFilesResource
     from .resources.intake.intake import IntakeResource, AsyncIntakeResource
     from .models import ModelsResource, AsyncModelsResource
-    from .resources.members.members import MembersResource, AsyncMembersResource
     from .resources.secrets.secrets import SecretsResource, AsyncSecretsResource
     from .resources.adapters.adapters import AdaptersResource, AsyncAdaptersResource
     from .resources.entities.entities import EntitiesResource, AsyncEntitiesResource
@@ -285,12 +283,6 @@ class NeMoPlatform(SyncAPIClient):
         from .resources.projects import ProjectsResource
 
         return ProjectsResource(self)
-
-    @cached_property
-    def members(self) -> MembersResource:
-        from .resources.members import MembersResource
-
-        return MembersResource(self)
 
     @cached_property
     def adapters(self) -> AdaptersResource:
@@ -645,12 +637,6 @@ class AsyncNeMoPlatform(AsyncAPIClient):
         return AsyncProjectsResource(self)
 
     @cached_property
-    def members(self) -> AsyncMembersResource:
-        from .resources.members import AsyncMembersResource
-
-        return AsyncMembersResource(self)
-
-    @cached_property
     def adapters(self) -> AsyncAdaptersResource:
         from .resources.adapters import AsyncAdaptersResource
 
@@ -866,12 +852,6 @@ class NeMoPlatformWithRawResponse:
         return ProjectsResourceWithRawResponse(self._client.projects)
 
     @cached_property
-    def members(self) -> members.MembersResourceWithRawResponse:
-        from .resources.members import MembersResourceWithRawResponse
-
-        return MembersResourceWithRawResponse(self._client.members)
-
-    @cached_property
     def adapters(self) -> adapters.AdaptersResourceWithRawResponse:
         from .resources.adapters import AdaptersResourceWithRawResponse
 
@@ -955,12 +935,6 @@ class AsyncNeMoPlatformWithRawResponse:
         from .resources.projects import AsyncProjectsResourceWithRawResponse
 
         return AsyncProjectsResourceWithRawResponse(self._client.projects)
-
-    @cached_property
-    def members(self) -> members.AsyncMembersResourceWithRawResponse:
-        from .resources.members import AsyncMembersResourceWithRawResponse
-
-        return AsyncMembersResourceWithRawResponse(self._client.members)
 
     @cached_property
     def adapters(self) -> adapters.AsyncAdaptersResourceWithRawResponse:
@@ -1048,12 +1022,6 @@ class NeMoPlatformWithStreamedResponse:
         return ProjectsResourceWithStreamingResponse(self._client.projects)
 
     @cached_property
-    def members(self) -> members.MembersResourceWithStreamingResponse:
-        from .resources.members import MembersResourceWithStreamingResponse
-
-        return MembersResourceWithStreamingResponse(self._client.members)
-
-    @cached_property
     def adapters(self) -> adapters.AdaptersResourceWithStreamingResponse:
         from .resources.adapters import AdaptersResourceWithStreamingResponse
 
@@ -1137,12 +1105,6 @@ class AsyncNeMoPlatformWithStreamedResponse:
         from .resources.projects import AsyncProjectsResourceWithStreamingResponse
 
         return AsyncProjectsResourceWithStreamingResponse(self._client.projects)
-
-    @cached_property
-    def members(self) -> members.AsyncMembersResourceWithStreamingResponse:
-        from .resources.members import AsyncMembersResourceWithStreamingResponse
-
-        return AsyncMembersResourceWithStreamingResponse(self._client.members)
 
     @cached_property
     def adapters(self) -> adapters.AsyncAdaptersResourceWithStreamingResponse:
