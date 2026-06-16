@@ -3,29 +3,24 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ControlledSearchableSelect } from '@nemo/common/src/components/form/ControlledSearchableSelect';
+import { ControlledTextInput } from '@nemo/common/src/components/form/ControlledTextInput';
 import { FormModal } from '@nemo/common/src/components/FormModal';
 import { useToast } from '@nemo/common/src/providers/toast/useToast';
 import { getAgentsListAgentsQueryKey, useAgentsCreateAgent } from '@nemo/sdk/generated/agents/api';
 import { useModelsListModels } from '@nemo/sdk/generated/platform/api';
 import { getErrorMessage } from '@studio/api/common/utils';
-import {
-  hasShownExampleAgentIntro,
-  markAgentWalkthroughPending,
-  markExampleAgentIntroShown,
-} from '@studio/components/sidePanels/AgentPanels/AgentPanel/walkthroughStorage';
 import { DEFAULT_LARGE_PAGE_SIZE } from '@studio/constants/constants';
 import {
-  buildExampleAgentConfig,
-  buildExampleAgentName,
-  EXAMPLE_AGENT_DESCRIPTION,
-  exampleAgentFormSchema,
-  isExampleAgentName,
-} from '@studio/routes/agents/AgentsListRoute/CreateExampleAgentModal/const';
+  applyModelToConfig,
+  buildClonedAgentName,
+  cloneAgentFormSchema,
+  getPrimaryModelName,
+} from '@studio/routes/agents/AgentsListRoute/CloneAgentModal/const';
 import type {
-  CreateExampleAgentModalProps,
-  ExampleAgentFormData,
-} from '@studio/routes/agents/AgentsListRoute/CreateExampleAgentModal/type';
-import { getAgentDetailRoute, getAgentsListRoute } from '@studio/routes/utils';
+  CloneAgentFormData,
+  CloneAgentModalProps,
+} from '@studio/routes/agents/AgentsListRoute/CloneAgentModal/type';
+import { getAgentDetailRoute } from '@studio/routes/utils';
 import {
   buildSuggestedModelOptions,
   pickDefaultModelName,
@@ -36,11 +31,11 @@ import { type FC, useEffect, useRef } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 
-export const CreateExampleAgentModal: FC<CreateExampleAgentModalProps> = ({
+export const CloneAgentModal: FC<CloneAgentModalProps> = ({
   open,
   onClose,
   workspace,
-  existingAgents,
+  sourceAgent,
 }) => {
   const toast = useToast();
   const navigate = useNavigate();
@@ -64,21 +59,8 @@ export const CreateExampleAgentModal: FC<CreateExampleAgentModalProps> = ({
       onSuccess: (agent) => {
         toast.success(`Agent "${agent.name}" created`);
         void queryClient.invalidateQueries({ queryKey: getAgentsListAgentsQueryKey(workspace) });
-        const priorExampleAgentExists = existingAgents.some(
-          (existing) =>
-            !!existing.name && existing.name !== agent.name && isExampleAgentName(existing.name)
-        );
-        const onboard = !!agent.name && !hasShownExampleAgentIntro() && !priorExampleAgentExists;
-        if (onboard && agent.name) {
-          markExampleAgentIntroShown();
-          markAgentWalkthroughPending(agent.name);
-        }
         resetAndClose();
-        navigate(
-          onboard && agent.name
-            ? getAgentDetailRoute(workspace, agent.name)
-            : getAgentsListRoute(workspace)
-        );
+        if (agent.name) navigate(getAgentDetailRoute(workspace, agent.name));
       },
     },
   });
@@ -86,11 +68,12 @@ export const CreateExampleAgentModal: FC<CreateExampleAgentModalProps> = ({
   const {
     control,
     reset: resetForm,
+    setValue,
     handleSubmit,
     formState: { errors },
   } = useForm({
-    resolver: zodResolver(exampleAgentFormSchema),
-    defaultValues: { modelName: '' },
+    resolver: zodResolver(cloneAgentFormSchema),
+    defaultValues: { name: '', modelName: '' },
     disabled: isPending,
     mode: 'onChange',
   });
@@ -99,21 +82,27 @@ export const CreateExampleAgentModal: FC<CreateExampleAgentModalProps> = ({
   useEffect(() => {
     if (!open) {
       seededRef.current = false;
-      resetForm({ modelName: '' });
+      resetForm({ name: '', modelName: '' });
       return;
     }
     if (seededRef.current) return;
-    const defaultModel = pickDefaultModelName(models);
-    if (defaultModel) {
-      resetForm({ modelName: defaultModel });
+    const optionValues = new Set(modelOptions.map((o) => o.value));
+    const currentModel = getPrimaryModelName(sourceAgent?.config);
+    const seededModel =
+      currentModel && optionValues.has(currentModel)
+        ? currentModel
+        : (pickDefaultModelName(models) ?? '');
+    if (seededModel) {
+      // Seed only the model so a name the user typed before models loaded isn't wiped.
+      setValue('modelName', seededModel, { shouldValidate: true });
       seededRef.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, modelsPage, resetForm]);
+  }, [open, modelsPage, sourceAgent, setValue]);
 
   const reset = () => {
     resetMutation();
-    resetForm({ modelName: '' });
+    resetForm({ name: '', modelName: '' });
   };
 
   const resetAndClose = () => {
@@ -121,14 +110,18 @@ export const CreateExampleAgentModal: FC<CreateExampleAgentModalProps> = ({
     onClose();
   };
 
-  const onSubmit: SubmitHandler<ExampleAgentFormData> = async (formData) => {
+  const onSubmit: SubmitHandler<CloneAgentFormData> = async (formData) => {
+    if (!sourceAgent) return;
+    const trimmed = formData.name.trim();
+    const name = trimmed || buildClonedAgentName(sourceAgent.name);
     try {
       await createAgent({
         workspace,
         data: {
-          name: buildExampleAgentName(),
-          description: EXAMPLE_AGENT_DESCRIPTION,
-          config: buildExampleAgentConfig(formData.modelName),
+          name,
+          description: sourceAgent.description,
+          config: applyModelToConfig(sourceAgent.config, formData.modelName),
+          config_format: sourceAgent.config_format,
         },
       });
     } catch {
@@ -137,20 +130,35 @@ export const CreateExampleAgentModal: FC<CreateExampleAgentModalProps> = ({
   };
 
   const errorMessage = createError
-    ? getErrorMessage(createError as Error, 'Failed to create example agent')
+    ? getErrorMessage(createError as Error, 'Failed to clone agent')
     : undefined;
 
   return (
     <FormModal
       open={open}
       onClose={resetAndClose}
-      title="Create Example Agent"
-      submitButtonText="Create"
+      title="Clone Agent"
+      instruction={
+        sourceAgent
+          ? `Create a copy of "${sourceAgent.name}" with a new name and model.`
+          : undefined
+      }
+      submitButtonText="Clone"
       onSubmit={handleSubmit(onSubmit)}
       disabled={isPending}
       loading={isPending}
       errorText={errorMessage}
     >
+      <ControlledTextInput
+        useControllerProps={{ control, name: 'name' }}
+        label="Name"
+        placeholder={
+          sourceAgent ? `${sourceAgent.name}-… (leave blank to auto-generate)` : undefined
+        }
+        formFieldProps={{
+          slotError: errors.name?.message,
+        }}
+      />
       <ControlledSearchableSelect
         useControllerProps={{ control, name: 'modelName' }}
         options={modelOptions}
