@@ -176,6 +176,7 @@ jobs:
             printf 'CI_COMMIT_SHA=%s\n' "$source_sha"
             printf 'FASTEMBED_CACHE_CONTEXT=%s\n' "$fastembed_cache_dir"
             printf 'FASTEMBED_CACHE_DIR=%s\n' "$fastembed_cache_dir"
+            printf 'DOCKER_BAKE_ALLOW_FS_READ=%s\n' "$fastembed_cache_dir"
             printf 'FASTEMBED_MODEL_REPO=%s\n' "qdrant/all-MiniLM-L6-v2-onnx"
             printf 'FASTEMBED_MODEL_REVISION=%s\n' "main"
             printf 'PUBLISH_IMAGES=%s\n' "$publish_images"
@@ -1159,7 +1160,15 @@ jobs:
   coverage-comment:
     name: Post coverage comment
     needs: [python-unit-test, python-integration-test]
-    if: always() && github.event_name == 'pull_request'
+    if: >
+      always() &&
+      github.event_name == 'pull_request' &&
+      (
+        needs.python-unit-test.result == 'success' ||
+        needs.python-unit-test.result == 'failure' ||
+        needs.python-integration-test.result == 'success' ||
+        needs.python-integration-test.result == 'failure'
+      )
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
