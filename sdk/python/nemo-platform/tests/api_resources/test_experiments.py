@@ -59,7 +59,6 @@ class TestExperiments:
             description="description",
             metadata={"foo": "bar"},
             source_link="https://example.com",
-            summary="summary",
         )
         assert_matches_type(ExperimentResponse, experiment, path=["response"])
 
@@ -183,7 +182,6 @@ class TestExperiments:
             description="description",
             metadata={"foo": "bar"},
             source_link="https://example.com",
-            summary="summary",
         )
         assert_matches_type(ExperimentResponse, experiment, path=["response"])
 
@@ -659,7 +657,6 @@ class TestAsyncExperiments:
             description="description",
             metadata={"foo": "bar"},
             source_link="https://example.com",
-            summary="summary",
         )
         assert_matches_type(ExperimentResponse, experiment, path=["response"])
 
@@ -783,7 +780,6 @@ class TestAsyncExperiments:
             description="description",
             metadata={"foo": "bar"},
             source_link="https://example.com",
-            summary="summary",
         )
         assert_matches_type(ExperimentResponse, experiment, path=["response"])
 
