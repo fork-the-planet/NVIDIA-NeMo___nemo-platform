@@ -1,14 +1,21 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Docker resource naming and identity labels for orphan cleanup."""
+"""Docker resource naming and identity labels for orphan cleanup.
 
-from __future__ import annotations
+Resource names are derived from a human-readable prefix plus a deterministic
+8-character hash. The hash is computed from ``{workspace}/{name}`` (see
+``deployment_key``), not from the hyphen-joined display string, so ambiguous
+pairs like ``("foo", "bar-baz")`` and ``("foo-bar", "baz")`` produce distinct
+names even when their joined prefixes collide.
 
-import hashlib
-import re
+Naming logic is shared via ``nemo_platform_plugin.k8s_naming`` (plugins cannot
+import ``nmp_common``). Orphan cleanup and idempotency rely on identity labels,
+not container names alone.
+"""
 
 from nemo_deployments_plugin.constants import MANAGED_BY_LABEL
+from nemo_platform_plugin.k8s_naming import k8s_safe_name, workspace_name_identity
 
 MANAGED_BY_KEY = "managed-by"
 DEPLOYMENT_WORKSPACE_LABEL = "nemo.nvidia.com/deployment-workspace"
@@ -19,35 +26,25 @@ VOLUME_WORKSPACE_LABEL = "nemo.nvidia.com/volume-workspace"
 VOLUME_NAME_LABEL = "nemo.nvidia.com/volume-name"
 
 
-def k8s_safe_name(base_name: str, *, max_length: int = 63, suffix: str = "") -> str:
-    """Generate a DNS-label-safe name (RFC 1035) from arbitrary input."""
-    hash_suffix = hashlib.sha256(base_name.encode()).hexdigest()[:8]
-    normalized = re.sub(r"[^a-z0-9-]", "-", base_name.lower())
-    normalized = re.sub(r"[-]+", "-", normalized)
-    if normalized and not normalized[0].isalpha():
-        normalized = f"x{normalized}"
-    normalized = normalized.rstrip("-")
-
-    reserved = len(suffix) + len(hash_suffix) + 1
-    if len(normalized) + reserved > max_length:
-        trim = max_length - reserved
-        normalized = normalized[:trim].rstrip("-")
-        normalized = f"{normalized}-{hash_suffix}{suffix}"
-    elif suffix:
-        normalized = f"{normalized}{suffix}"
-    return normalized
+def deployment_key(workspace: str, name: str) -> str:
+    """Return the canonical identity string used for hashing and label keys."""
+    return workspace_name_identity(workspace, name)
 
 
 def container_name(workspace: str, deployment_name: str) -> str:
-    return k8s_safe_name(f"dep-{workspace}-{deployment_name}")
+    """Docker container name for a deployment (``dep-`` prefix, hashed identity)."""
+    return k8s_safe_name(
+        f"dep-{workspace}-{deployment_name}",
+        hash_input=deployment_key(workspace, deployment_name),
+    )
 
 
 def docker_volume_name(workspace: str, volume_name: str) -> str:
-    return k8s_safe_name(f"dep-vol-{workspace}-{volume_name}")
-
-
-def deployment_key(workspace: str, name: str) -> str:
-    return f"{workspace}/{name}"
+    """Docker volume name for a deployment volume (``dep-vol-`` prefix, hashed identity)."""
+    return k8s_safe_name(
+        f"dep-vol-{workspace}-{volume_name}",
+        hash_input=deployment_key(workspace, volume_name),
+    )
 
 
 BACKOFF_LIMIT_LABEL = "nemo.nvidia.com/backoff-limit"
