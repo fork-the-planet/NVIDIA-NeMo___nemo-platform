@@ -17,11 +17,21 @@
 
 from __future__ import annotations
 
-from .sort_criterion import SortCriterion as SortCriterion
-from .sort_criterion_param import SortCriterionParam as SortCriterionParam
-from .experiment_group_response import ExperimentGroupResponse as ExperimentGroupResponse
-from .experiment_group_list_params import ExperimentGroupListParams as ExperimentGroupListParams
-from .experiment_group_filter_param import ExperimentGroupFilterParam as ExperimentGroupFilterParam
-from .experiment_group_create_params import ExperimentGroupCreateParams as ExperimentGroupCreateParams
-from .experiment_group_update_params import ExperimentGroupUpdateParams as ExperimentGroupUpdateParams
-from .experiment_group_responses_page import ExperimentGroupResponsesPage as ExperimentGroupResponsesPage
+from typing_extensions import Literal, Required, TypedDict
+
+__all__ = ["SortCriterionParam"]
+
+
+class SortCriterionParam(TypedDict, total=False):
+    """
+    One criterion in a group's default sort: a sortable rollup-metric path and its direction.
+    """
+
+    direction: Required[Literal["asc", "desc"]]
+    """Sort direction for this field."""
+
+    field: Required[str]
+    """Rollup-metric sort path, e.g.
+
+    cost_usd.mean, latency_ms.p95, or evaluators.<name>.mean.
+    """

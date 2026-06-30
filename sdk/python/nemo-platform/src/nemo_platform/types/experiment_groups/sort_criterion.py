@@ -15,31 +15,23 @@
 
 # File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
 
-from typing import List, Optional
-from datetime import datetime
+from typing_extensions import Literal
 
 from ..._models import BaseModel
-from .sort_criterion import SortCriterion
 
-__all__ = ["ExperimentGroupResponse"]
+__all__ = ["SortCriterion"]
 
 
-class ExperimentGroupResponse(BaseModel):
-    """ExperimentGroup as served by the API."""
+class SortCriterion(BaseModel):
+    """
+    One criterion in a group's default sort: a sortable rollup-metric path and its direction.
+    """
 
-    id: str
+    direction: Literal["asc", "desc"]
+    """Sort direction for this field."""
 
-    name: str
+    field: str
+    """Rollup-metric sort path, e.g.
 
-    workspace: str
-
-    created_at: Optional[datetime] = None
-
-    default_sort: Optional[List[SortCriterion]] = None
-
-    description: Optional[str] = None
-
-    experiment_count: Optional[int] = None
-    """Number of live (non-soft-deleted) experiments in this group."""
-
-    updated_at: Optional[datetime] = None
+    cost_usd.mean, latency_ms.p95, or evaluators.<name>.mean.
+    """
