@@ -13,19 +13,23 @@ import { TableEmptyState } from '@nemo/common/src/components/TableEmptyState';
 import { JOB_POLLING_INTERVAL_MS } from '@nemo/common/src/constants';
 import { useStudioDataViewState } from '@nemo/common/src/hooks/useStudioDataViewState';
 import { getSortParam } from '@nemo/common/src/utils/query';
-import { useDataDesignerListCreateJobs } from '@nemo/sdk/generated/data-designer/api';
+import {
+  getDataDesignerListCreateJobsQueryKey,
+  useDataDesignerDeleteCreateJob,
+  useDataDesignerListCreateJobs,
+} from '@nemo/sdk/generated/data-designer/api';
 import type {
   CreateJob as DataDesignerJob,
   CreateJobsListFilter as DataDesignerJobsListFilter,
   CreateJobsSortField as DataDesignerJobsSortField,
 } from '@nemo/sdk/generated/data-designer/schema';
 import { Banner, Button, Text } from '@nvidia/foundations-react-core';
+import { BulkDeleteModal } from '@studio/components/BulkDeleteModal';
 import { DataDesignerJobActionsMenu } from '@studio/components/DataDesignerJobActionsMenu';
-import { DeleteJobModal } from '@studio/components/dataViews/DataDesignerJobsDataView/DeleteJobModal';
 import { STATUS_FILTER_OPTIONS } from '@studio/constants/platformJobs';
 import { useWorkspaceFromPath } from '@studio/hooks/useWorkspaceFromPath';
 import { getDataDesignerJobDetailsRoute, getNewDataDesignerJobRoute } from '@studio/routes/utils';
-import { keepPreviousData } from '@tanstack/react-query';
+import { keepPreviousData, useQueryClient } from '@tanstack/react-query';
 import { Trash } from 'lucide-react';
 import { ComponentProps, FC, useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -41,8 +45,39 @@ export const DataDesignerJobsDataView: FC = () => {
     columnVisibility: { updated_at: false },
   });
 
+  const queryClient = useQueryClient();
+
   const [deleteJobs, setDeleteJobs] = useState<DataDesignerJob[]>([]);
   const [cancelError, setCancelError] = useState<string | undefined>(undefined);
+
+  const deleteJobMutation = useDataDesignerDeleteCreateJob({
+    mutation: {
+      onSuccess: () =>
+        queryClient.resetQueries({
+          queryKey: getDataDesignerListCreateJobsQueryKey(workspace),
+        }),
+    },
+  });
+
+  const handleDeleteJobs = async (jobsToDelete: DataDesignerJob[]) => {
+    const invalid = jobsToDelete.filter((job) => !job.workspace || !job.name);
+    if (invalid.length > 0) {
+      throw new Error(
+        `Cannot delete ${invalid.length} job${invalid.length !== 1 ? 's' : ''}: missing workspace or name.`
+      );
+    }
+    await Promise.all(
+      jobsToDelete.map(async (job) => {
+        try {
+          await deleteJobMutation.mutateAsync({ workspace: job.workspace!, name: job.name });
+        } catch (error) {
+          throw new Error(
+            `Failed to delete job "${job.name}": ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
+        }
+      })
+    );
+  };
 
   const { data: dataDesignerResponse, isLoading } = useDataDesignerListCreateJobs(
     workspace,
@@ -208,15 +243,16 @@ export const DataDesignerJobsDataView: FC = () => {
         }}
       />
 
-      {deleteJobs.length > 0 && (
-        <DeleteJobModal
-          jobs={deleteJobs}
-          onClose={() => {
-            setDeleteJobs([]);
-            dataViewState.rowSelection.set({});
-          }}
-        />
-      )}
+      <BulkDeleteModal
+        items={deleteJobs}
+        open={deleteJobs.length > 0}
+        onDelete={handleDeleteJobs}
+        title={(count) => `Delete ${count} Data Designer Job${count !== 1 ? 's' : ''}`}
+        onClose={() => {
+          setDeleteJobs([]);
+          dataViewState.rowSelection.set({});
+        }}
+      />
     </>
   );
 };
