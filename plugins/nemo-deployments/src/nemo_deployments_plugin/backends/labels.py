@@ -1,17 +1,17 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Docker resource naming and identity labels for orphan cleanup.
+"""Shared deployment/volume identity labels and substrate-safe resource naming.
 
-Resource names are derived from a human-readable prefix plus a deterministic
-8-character hash. The hash is computed from ``{workspace}/{name}`` (see
-``deployment_key``), not from the hyphen-joined display string, so ambiguous
-pairs like ``("foo", "bar-baz")`` and ``("foo-bar", "baz")`` produce distinct
-names even when their joined prefixes collide.
+Naming uses ``nemo_platform_plugin.k8s_naming`` (plugins cannot import ``nmp_common``).
+Identity labels drive orphan cleanup and idempotency across docker and k8s backends.
 
-Naming logic is shared via ``nemo_platform_plugin.k8s_naming`` (plugins cannot
-import ``nmp_common``). Orphan cleanup and idempotency rely on identity labels,
-not container names alone.
+Label domain is ``nemo.nvidia.com/*`` (deployments plugin scope). Core services such as
+jobs and models use ``nmp.nvidia.com/*`` today; converging prefixes is out of scope for 757.
+
+Deployment and volume resources use separate workspace label keys
+(``deployment-workspace`` vs ``volume-workspace``) so list/watch queries can target one
+resource kind without ambiguous selectors, even though the workspace value is the same string.
 """
 
 from nemo_deployments_plugin.constants import MANAGED_BY_LABEL
@@ -24,6 +24,7 @@ RESTART_POLICY_LABEL = "nemo.nvidia.com/restart-policy"
 CONFIG_NAME_LABEL = "nemo.nvidia.com/deployment-config"
 VOLUME_WORKSPACE_LABEL = "nemo.nvidia.com/volume-workspace"
 VOLUME_NAME_LABEL = "nemo.nvidia.com/volume-name"
+BACKOFF_LIMIT_LABEL = "nemo.nvidia.com/backoff-limit"
 
 
 def deployment_key(workspace: str, name: str) -> str:
@@ -33,21 +34,28 @@ def deployment_key(workspace: str, name: str) -> str:
 
 def container_name(workspace: str, deployment_name: str) -> str:
     """Docker container name for a deployment (``dep-`` prefix, hashed identity)."""
+    return k8s_deployment_resource_name(workspace, deployment_name)
+
+
+def docker_volume_name(workspace: str, volume_name: str) -> str:
+    """Docker volume name for a deployment volume (``dep-vol-`` prefix, hashed identity)."""
+    return k8s_volume_resource_name(workspace, volume_name)
+
+
+def k8s_deployment_resource_name(workspace: str, deployment_name: str) -> str:
+    """Kubernetes resource name for a deployment (Deployment, Job, Service, etc.)."""
     return k8s_safe_name(
         f"dep-{workspace}-{deployment_name}",
         hash_input=deployment_key(workspace, deployment_name),
     )
 
 
-def docker_volume_name(workspace: str, volume_name: str) -> str:
-    """Docker volume name for a deployment volume (``dep-vol-`` prefix, hashed identity)."""
+def k8s_volume_resource_name(workspace: str, volume_name: str) -> str:
+    """Kubernetes PVC name for a deployment volume."""
     return k8s_safe_name(
         f"dep-vol-{workspace}-{volume_name}",
         hash_input=deployment_key(workspace, volume_name),
     )
-
-
-BACKOFF_LIMIT_LABEL = "nemo.nvidia.com/backoff-limit"
 
 
 def deployment_identity_labels(
@@ -58,6 +66,7 @@ def deployment_identity_labels(
     config_name: str,
     backoff_limit: int = 6,
 ) -> dict[str, str]:
+    """Return identity labels attached to deployment backend resources."""
     return {
         MANAGED_BY_KEY: MANAGED_BY_LABEL,
         DEPLOYMENT_WORKSPACE_LABEL: workspace,
@@ -69,6 +78,7 @@ def deployment_identity_labels(
 
 
 def volume_identity_labels(workspace: str, name: str) -> dict[str, str]:
+    """Return identity labels attached to volume backend resources."""
     return {
         MANAGED_BY_KEY: MANAGED_BY_LABEL,
         VOLUME_WORKSPACE_LABEL: workspace,
@@ -76,5 +86,11 @@ def volume_identity_labels(workspace: str, name: str) -> dict[str, str]:
     }
 
 
-def managed_by_filter() -> dict[str, str | bool]:
+def managed_by_filter() -> dict[str, str]:
+    """Return a Docker SDK filter dict for plugin-managed resources."""
     return {"label": f"{MANAGED_BY_KEY}={MANAGED_BY_LABEL}"}
+
+
+def managed_by_label_selector() -> str:
+    """Kubernetes label selector for plugin-managed resources."""
+    return f"{MANAGED_BY_KEY}={MANAGED_BY_LABEL}"
