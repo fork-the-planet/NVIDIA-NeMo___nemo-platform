@@ -21,9 +21,11 @@ export const NewDataDesignerJobRoute: FC = () => {
     ],
   });
 
-  const handleContinue = (optionId: StartOptionId) => {
+  const handleContinue = (optionId: StartOptionId, templateId?: string) => {
     if (optionId === 'scratch') {
       navigate(getDataDesignerJobBuildRoute(workspace));
+    } else if (optionId === 'template' && templateId) {
+      navigate(`${getDataDesignerJobBuildRoute(workspace)}?template=${templateId}`);
     }
   };
 
