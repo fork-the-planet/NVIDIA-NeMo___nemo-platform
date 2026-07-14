@@ -6,11 +6,13 @@ import type { ColumnTypeOption } from '@studio/components/AddColumnPalette/types
 import {
   type BuilderColumn,
   buildColumnsFromTemplate,
+  buildDataDesignerConfig,
   buildGraph,
   defaultColumnName,
   extractJinjaReferences,
   findColumnOption,
   validateColumnName,
+  validateColumns,
 } from '@studio/routes/DataDesignerJobBuildRoute/columns';
 
 const optionFor = (columnType: string, samplerType?: string): ColumnTypeOption => {
@@ -23,8 +25,9 @@ const column = (
   id: string,
   name: string,
   columnType: string,
-  values: Record<string, string>
-): BuilderColumn => ({ id, name, option: optionFor(columnType), values });
+  values: Record<string, string>,
+  samplerType?: string
+): BuilderColumn => ({ id, name, option: optionFor(columnType, samplerType), values });
 
 describe('extractJinjaReferences', () => {
   it('pulls identifiers out of {{ }} tokens, including filters and whitespace variants', () => {
@@ -146,6 +149,85 @@ describe('buildGraph', () => {
     expect(edges).toContainEqual({ source: 'a', target: 'd' });
     expect(edges).toContainEqual({ source: 'b', target: 'd' });
     expect(edges).toHaveLength(3);
+  });
+});
+
+describe('sampler columns', () => {
+  it('nests category values under the required params object', () => {
+    const columns = [
+      column('a', 'domain', 'sampler', { values: 'science, history, , arts' }, 'category'),
+    ];
+
+    expect(buildDataDesignerConfig(columns).columns[0]).toEqual({
+      name: 'domain',
+      column_type: 'sampler',
+      sampler_type: 'category',
+      params: { values: ['science', 'history', 'arts'] },
+    });
+  });
+
+  it('keeps convert_to at the top level alongside params', () => {
+    const columns = [
+      column('a', 'domain', 'sampler', { values: 'a, b', convert_to: 'str' }, 'category'),
+    ];
+
+    expect(buildDataDesignerConfig(columns).columns[0]).toMatchObject({
+      params: { values: ['a', 'b'] },
+      convert_to: 'str',
+    });
+  });
+
+  it('requires category values', () => {
+    const columns = [column('a', 'domain', 'sampler', {}, 'category')];
+
+    expect(validateColumns(columns)).toContainEqual(expect.stringContaining('Categories'));
+  });
+
+  it('serializes binomial params as numbers', () => {
+    const columns = [column('a', 'returns', 'sampler', { n: '10', p: '0.1' }, 'binomial')];
+
+    expect(buildDataDesignerConfig(columns).columns[0]).toEqual({
+      name: 'returns',
+      column_type: 'sampler',
+      sampler_type: 'binomial',
+      params: { n: 10, p: 0.1 },
+    });
+  });
+
+  it('serializes boolean and JSON params for their SDK types', () => {
+    const columns = [
+      column(
+        'a',
+        'dist',
+        'sampler',
+        { dist_name: 'norm', dist_params: '{ "loc": 0, "scale": 1 }', p: '0.5' },
+        'bernoulli_mixture'
+      ),
+      column('b', 'ids', 'sampler', { short_form: 'true' }, 'uuid'),
+    ];
+
+    const built = buildDataDesignerConfig(columns);
+    expect(built.columns[0]).toMatchObject({
+      params: { p: 0.5, dist_name: 'norm', dist_params: { loc: 0, scale: 1 } },
+    });
+    expect(built.columns[1]).toMatchObject({ params: { short_form: true } });
+  });
+
+  it('flags non-numeric and malformed-JSON sampler params', () => {
+    const columns = [
+      column('a', 'returns', 'sampler', { n: 'not-a-number', p: '0.1' }, 'binomial'),
+      column(
+        'b',
+        'dist',
+        'sampler',
+        { dist_name: 'norm', dist_params: '{ bad', p: '0.5' },
+        'bernoulli_mixture'
+      ),
+    ];
+
+    const errors = validateColumns(columns);
+    expect(errors).toContainEqual(expect.stringContaining('Number of trials'));
+    expect(errors).toContainEqual(expect.stringContaining('Distribution params'));
   });
 });
 
