@@ -12,6 +12,7 @@ import { ErrorMessage } from '@nemo/common/src/components/ErrorMessage';
 import { RelativeTime } from '@nemo/common/src/components/RelativeTime';
 import { useStudioDataViewState } from '@nemo/common/src/hooks/useStudioDataViewState';
 import { useToast } from '@nemo/common/src/providers/toast/useToast';
+import { formatDurationMs } from '@nemo/common/src/utils/date';
 import { snakeCaseToTitleCase } from '@nemo/common/src/utils/formatters';
 import type {
   ExperimentFilter,
@@ -380,7 +381,7 @@ export const ExperimentGroupDataView: FC<ExperimentGroupDataViewProps> = ({ grou
               count={latency_ms?.count}
               runCount={run_count}
             >
-              {latency_ms?.mean != null ? `${Math.round(latency_ms.mean)} ms` : '-'}
+              {latency_ms?.mean != null ? formatDurationMs(latency_ms.mean) : '-'}
             </MeanValueTooltipCell>
           );
         },
