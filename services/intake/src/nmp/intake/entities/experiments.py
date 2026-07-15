@@ -6,6 +6,13 @@
 These are entity-store rows, distinct from ClickHouse telemetry. They hold the
 durable, producer-supplied metadata that organizes telemetry into leaderboard
 views. Rollups are derived from ClickHouse at read time.
+
+NOTE: The public API and Studio already call this concept an "Evaluation" — but
+the entity here is intentionally still ``Experiment`` (``__entity_type__ =
+"experiment"``, ``parent_experiment_id``). Renaming the entity, its
+``__entity_type__``, and its stored fields is a breaking storage change that
+requires a one-time data migration of existing rows, so it is deferred to a
+later pass. Until then the API layer maps Evaluation ⇄ this Experiment entity.
 """
 
 from __future__ import annotations
@@ -79,6 +86,9 @@ class Experiment(EntityBase):
     """A single agent/config run against a dataset: one row on a leaderboard.
 
     ``name`` is the producer-supplied, workspace-unique experiment id.
+
+    Exposed as "Evaluation" by the API/Studio; still stored as ``experiment``
+    here pending the entity rename + data migration (see module docstring).
     """
 
     __entity_type__: ClassVar[str] = "experiment"

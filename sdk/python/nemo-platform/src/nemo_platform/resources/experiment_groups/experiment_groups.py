@@ -90,9 +90,9 @@ class ExperimentGroupsResource(SyncAPIResource):
         Args:
           name: Workspace-unique group name.
 
-          default_sort: Default sort for this group's experiments list, as a `sort`-param string
+          default_sort: Default sort for this group's evaluations list, as a `sort`-param string
               (leading '-' = descending); defaults to '-created_at'. Accepts any field the
-              experiments list `sort` param does; clients apply it as the list `sort` param.
+              evaluations list `sort` param does; clients apply it as the list `sort` param.
 
           description: Human-readable purpose of the group.
 
@@ -206,9 +206,9 @@ class ExperimentGroupsResource(SyncAPIResource):
         Args:
           body_name: Workspace-unique group name.
 
-          default_sort: Default sort for this group's experiments list, as a `sort`-param string
+          default_sort: Default sort for this group's evaluations list, as a `sort`-param string
               (leading '-' = descending); defaults to '-created_at'. Accepts any field the
-              experiments list `sort` param does; clients apply it as the list `sort` param.
+              evaluations list `sort` param does; clients apply it as the list `sort` param.
 
           description: Human-readable purpose of the group.
 
@@ -403,9 +403,9 @@ class AsyncExperimentGroupsResource(AsyncAPIResource):
         Args:
           name: Workspace-unique group name.
 
-          default_sort: Default sort for this group's experiments list, as a `sort`-param string
+          default_sort: Default sort for this group's evaluations list, as a `sort`-param string
               (leading '-' = descending); defaults to '-created_at'. Accepts any field the
-              experiments list `sort` param does; clients apply it as the list `sort` param.
+              evaluations list `sort` param does; clients apply it as the list `sort` param.
 
           description: Human-readable purpose of the group.
 
@@ -519,9 +519,9 @@ class AsyncExperimentGroupsResource(AsyncAPIResource):
         Args:
           body_name: Workspace-unique group name.
 
-          default_sort: Default sort for this group's experiments list, as a `sort`-param string
+          default_sort: Default sort for this group's evaluations list, as a `sort`-param string
               (leading '-' = descending); defaults to '-created_at'. Accepts any field the
-              experiments list `sort` param does; clients apply it as the list `sort` param.
+              evaluations list `sort` param does; clients apply it as the list `sort` param.
 
           description: Human-readable purpose of the group.
 
