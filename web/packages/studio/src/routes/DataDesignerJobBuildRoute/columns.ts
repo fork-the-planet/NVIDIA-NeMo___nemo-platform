@@ -156,7 +156,21 @@ const FIELDS_BY_COLUMN_TYPE: Record<NonNullable<DataDesignerColumnType>, ColumnF
     },
     SYSTEM_PROMPT_FIELD,
   ],
-  'llm-judge': [PROMPT_FIELD, MODEL_ALIAS_FIELD, SYSTEM_PROMPT_FIELD],
+  'llm-judge': [
+    PROMPT_FIELD,
+    MODEL_ALIAS_FIELD,
+    {
+      key: 'scores',
+      label: 'Scores (JSON)',
+      kind: 'textarea',
+      dataType: 'json',
+      required: true,
+      placeholder:
+        '[{ "name": "Quality", "description": "Overall answer quality.", "options": { "1": "Very poor", "5": "Excellent" } }]',
+      helperText: 'JSON array of judge score definitions.',
+    },
+    SYSTEM_PROMPT_FIELD,
+  ],
   image: [
     { ...PROMPT_FIELD, placeholder: 'Generate an image of {{ subject }}.' },
     MODEL_ALIAS_FIELD,
@@ -683,10 +697,14 @@ export const validateColumnName = (name: string, takenNames: Set<string>): strin
 const fieldValueError = (field: ColumnField, value: string): string | null => {
   const isJson = field.dataType === 'json' || field.key === 'output_format';
   if (isJson) {
+    let parsed: unknown;
     try {
-      JSON.parse(value);
+      parsed = JSON.parse(value);
     } catch {
       return `${field.label} must be valid JSON.`;
+    }
+    if (field.key === 'scores' && !Array.isArray(parsed)) {
+      return `${field.label} must be a JSON array.`;
     }
     return null;
   }
